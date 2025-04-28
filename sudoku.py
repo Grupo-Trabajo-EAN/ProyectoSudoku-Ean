@@ -8,7 +8,7 @@ class GameFlow(Enum):
     PLAYER_NAME = 1
     DIFICULTY = 2
     GAME = 3
-    RETRY_OR_EXIT = 4  # Estado agregado para decidir si se vuelve a jugar o salir
+    RETRY_OR_EXIT = 4 
 
 VISUALIZATIONS = {
     "numbers": ["1", "2", "3", "4"],
