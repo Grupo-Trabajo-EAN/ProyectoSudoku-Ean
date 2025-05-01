@@ -8,7 +8,7 @@ class GameFlow(Enum):
     VISUALIZATION = 2
     DIFICULTY = 3
     GAME = 4
-    RETRY_OR_EXIT = 5 
+    RETRY_OR_EXIT = 5
 
 VISUALIZATIONS = {
     "numbers": ["1", "2", "3", "4"],
@@ -42,8 +42,23 @@ class GameState:
         self.board = []
         self.solution = []
         self.visualization = "numbers"
-        self.puntaje = 0  
-        self.racha = 0    
+        self.puntaje = 0
+        self.racha = 0
+        self.best_score = self.load_best_score()
+
+    def load_best_score(self):
+        try:
+            with open("highscore.txt", "r") as file:
+                return int(file.read().strip())
+        except (FileNotFoundError, ValueError):
+            return 0
+
+    def save_best_score(self):
+        if self.puntaje > self.best_score:
+            with open("highscore.txt", "w") as file:
+                file.write(str(self.puntaje))
+            self.best_score = self.puntaje
+            print("🎉 ¡Nuevo récord personal!")
 
     def build_board(self):
         solution = random.choice(SUDOKU_SOLUTIONS)
@@ -83,13 +98,12 @@ class GameState:
             print(f"Hola {self.player_name} 😊. Selecciona la dificultad:")
             print("1. Fácil (6 casillas vacías)")
             print("2. Difícil (10 casillas vacías)")
-            
         elif self.flow_state == GameFlow.GAME:
             print(f"Jugador: {self.player_name} | Dificultad: {self.difficulty}")
             print("\nResuelve el tablero ingresando: fila columna valor")
             self.print_board()
-            print(f"\nPuntaje actual: {self.puntaje} | Racha actual: {self.racha}")
-            print("Si quieres probar otro escribe 1, si quieres salir escribe 2.")
+            print(f"\nPuntaje actual: {self.puntaje} | Racha actual: {self.racha} | Récord personal: {self.best_score}")
+            print("Si quieres probar otro tablero escribe 1, si quieres salir escribe 2.")
         elif self.flow_state == GameFlow.RETRY_OR_EXIT:
             print("\nHas perdido la racha.")
             print("1. Intentar otro tablero\n2. Salir")
@@ -104,12 +118,14 @@ class GameState:
                 self.flow_state = GameFlow.PLAYER_NAME
             elif self.user_input == "2":
                 self.game_loop = False
+
         elif self.flow_state == GameFlow.PLAYER_NAME:
-            if not self.user_input:  
+            if not self.user_input:
                 print("¡El nombre no puede estar vacío! Inténtalo de nuevo.")
-                return  
+                return
             self.player_name = self.user_input
-            self.flow_state = GameFlow.VISUALIZATION  
+            self.flow_state = GameFlow.VISUALIZATION
+
         elif self.flow_state == GameFlow.VISUALIZATION:
             if self.user_input == "1":
                 self.visualization = "numbers"
@@ -119,8 +135,9 @@ class GameState:
                 self.visualization = "symbols"
             else:
                 print("Selección inválida. Elige 1, 2 o 3.")
-                return  
-            self.flow_state = GameFlow.DIFICULTY  
+                return
+            self.flow_state = GameFlow.DIFICULTY
+
         elif self.flow_state == GameFlow.DIFICULTY:
             if self.user_input == "1":
                 self.difficulty = "easy"
@@ -128,20 +145,21 @@ class GameState:
                 self.difficulty = "hard"
             else:
                 print("Selección inválida. Elige 1 o 2.")
-                return  
+                return
             self.board, self.solution = self.build_board()
             self.flow_state = GameFlow.GAME
-        
+
         elif self.flow_state == GameFlow.GAME:
             if self.user_input == "1":
                 self.board, self.solution = self.build_board()
                 return
             elif self.user_input == "2":
                 print("¡Perdiste o saliste! Se reinicia tu racha.")
-                self.racha = 0  
+                self.racha = 0
                 self.flow_state = GameFlow.RETRY_OR_EXIT
+                return
             try:
-                coords = self.user_input.strip().split()
+                coords = self.user_input.split()
                 if len(coords) != 3:
                     print("Entrada inválida. Usa el formato: fila columna valor")
                     return
@@ -170,28 +188,31 @@ class GameState:
                     return
 
                 if self.solution[row - 1][col - 1] != val:
-                    print("\n¡Valor incorrecto! Se reinicia la racha.")
+                    print("❌ Valor incorrecto. Se reinicia la racha.")
                     self.racha = 0
                     self.flow_state = GameFlow.RETRY_OR_EXIT
                     return
+                else:
+                    self.board[row - 1][col - 1] = val
+                    print("✔️ Valor correcto. Celda actualizada.")
 
-                self.board[row - 1][col - 1] = val
                 if all(cell != 0 for row in self.board for cell in row):
                     bono = 2 ** self.racha
                     puntos_a_sumar = 10 + (bono if self.racha > 0 else 0)
                     self.puntaje += puntos_a_sumar
                     self.racha += 1
-                    print(f"\n¡Felicidades! Tablero completo y correcto.")
+                    print(f"\n🎯 ¡Felicidades! Tablero completo y correcto.")
                     print(f"Sumaste {puntos_a_sumar} puntos. Puntaje total: {self.puntaje}")
+                    self.save_best_score()
                     input("\nPresiona Enter para continuar...")
                     self.board, self.solution = self.build_board()
+
             except ValueError:
                 print("Entrada inválida. Asegúrate de usar formato correcto.")
 
-
         elif self.flow_state == GameFlow.RETRY_OR_EXIT:
             if self.user_input == "1":
-                self.flow_state = GameFlow.VISUALIZATION  
+                self.flow_state = GameFlow.VISUALIZATION
             elif self.user_input == "2":
                 self.game_loop = False
 
