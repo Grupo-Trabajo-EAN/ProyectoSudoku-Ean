@@ -2,7 +2,6 @@ import os
 import random
 from enum import Enum
 
-# Estados del juego
 class GameFlow(Enum):
     MAIN_MENU = 0
     PLAYER_NAME = 1
@@ -45,21 +44,58 @@ class GameState:
         self.visualization = "numbers"
         self.puntaje = 0
         self.racha = 0
-        self.best_score = self.load_best_score()
+        self.best_score = 0
 
     def load_best_score(self):
         try:
-            with open("highscore.txt", "r") as file:
-                return int(file.read().strip())
+            with open("highscores.txt", "r") as file:
+                lines = [line.strip().split(",") for line in file]
+                for name, score in lines:
+                    if name == self.player_name:
+                        return int(score)
         except (FileNotFoundError, ValueError):
-            return 0
+            pass
+        return 0
 
-    def save_best_score(self):
-        if self.puntaje > self.best_score:
-            with open("highscore.txt", "w") as file:
-                file.write(str(self.puntaje))
-            self.best_score = self.puntaje
+    def save_score(self):
+        if not self.player_name:
+            return
+        # Guardar puntaje en scores.txt
+        with open("scores.txt", "a") as file:
+            file.write(f"{self.player_name},{self.puntaje}\n")
+
+        # Leer y actualizar highscores.txt
+        high_scores = {}
+        try:
+            with open("highscores.txt", "r") as file:
+                for line in file:
+                    name, score = line.strip().split(",")
+                    high_scores[name] = int(score)
+        except FileNotFoundError:
+            pass
+
+        if self.puntaje > high_scores.get(self.player_name, 0):
+            high_scores[self.player_name] = self.puntaje
             print("🎉 ¡Nuevo récord personal!")
+
+        with open("highscores.txt", "w") as file:
+            for name, score in high_scores.items():
+                file.write(f"{name},{score}\n")
+
+        self.best_score = high_scores[self.player_name]
+
+    def show_scores(self):
+        print("\n🏆 PUNTAJES TOTALES:")
+        try:
+            with open("scores.txt", "r") as file:
+                scores = [line.strip().split(",") for line in file.readlines()]
+                scores = [(name, int(score)) for name, score in scores]
+                scores.sort(key=lambda x: x[1], reverse=True)
+                for i, (name, score) in enumerate(scores[:10], 1):
+                    print(f"{i}. {name}: {score} puntos")
+        except FileNotFoundError:
+            print("Aún no hay puntajes guardados.")
+        input("\nPresiona Enter para continuar...")
 
     def build_board(self):
         solution = random.choice(SUDOKU_SOLUTIONS)
@@ -106,8 +142,11 @@ class GameState:
             print(f"\nPuntaje actual: {self.puntaje} | Racha actual: {self.racha} | Récord personal: {self.best_score}")
             print("Si quieres probar otro tablero escribe 1, si quieres salir escribe 2.")
         elif self.flow_state == GameFlow.RETRY_OR_EXIT:
-            print("\nHas perdido la racha.")
-            print("1. Intentar otro tablero\n2. Salir")
+            print("\n😢 Has perdido la racha.")
+            print("1. Probar nuevo tablero")
+            print("2. Ver los resultados")
+            print("3. Ingresar nuevo jugador")
+            print("4. Salir")
 
     def update(self, user_input=""):
         self.user_input = user_input.strip()
@@ -125,6 +164,7 @@ class GameState:
                 print("¡El nombre no puede estar vacío! Inténtalo de nuevo.")
                 return
             self.player_name = self.user_input
+            self.best_score = self.load_best_score()
             self.flow_state = GameFlow.VISUALIZATION
 
         elif self.flow_state == GameFlow.VISUALIZATION:
@@ -191,6 +231,7 @@ class GameState:
                 if self.solution[row - 1][col - 1] != val:
                     print("❌ Valor incorrecto. Se reinicia la racha.")
                     self.racha = 0
+                    self.save_score()
                     self.flow_state = GameFlow.RETRY_OR_EXIT
                     return
                 else:
@@ -204,7 +245,7 @@ class GameState:
                     self.racha += 1
                     print(f"\n🎯 ¡Felicidades! Tablero completo y correcto.")
                     print(f"Sumaste {puntos_a_sumar} puntos. Puntaje total: {self.puntaje}")
-                    self.save_best_score()
+                    self.save_score()
                     input("\nPresiona Enter para continuar...")
                     self.board, self.solution = self.build_board()
 
@@ -213,9 +254,19 @@ class GameState:
 
         elif self.flow_state == GameFlow.RETRY_OR_EXIT:
             if self.user_input == "1":
-                self.flow_state = GameFlow.VISUALIZATION
+                self.board, self.solution = self.build_board()
+                self.flow_state = GameFlow.GAME
             elif self.user_input == "2":
+                self.show_scores()
+            elif self.user_input == "3":
+                self.puntaje = 0
+                self.racha = 0
+                self.player_name = ""
+                self.flow_state = GameFlow.PLAYER_NAME
+            elif self.user_input == "4":
                 self.game_loop = False
+            else:
+                print("Opción inválida. Elige 1, 2, 3 o 4.")
 
 def go():
     game_state = GameState(4, 4)
@@ -226,3 +277,4 @@ def go():
 
 if __name__ == "__main__":
     go()
+
