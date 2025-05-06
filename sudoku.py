@@ -34,16 +34,17 @@ SUDOKU_SOLUTIONS = [
 
 def save_score(player_name, score):
     scores = load_best_scores()
-    scores.append((player_name, score))
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    scores.append((player_name, score, current_time))  # Agregar hora
     scores.sort(key=lambda x: int(x[1]), reverse=True)
     with open("best_scores.txt", "w") as f:
-        for name, pts in scores[:5]:
-            f.write(f"{name},{pts}\n")
+        for name, pts, hora in scores[:5]:
+            f.write(f"{name},{pts},{hora}\n")
 
 def load_best_scores():
     try:
         with open("best_scores.txt", "r") as f:
-            return [tuple(line.strip().split(',')) for line in f if line.strip()]
+            return [tuple(line.strip().split(',', 2)) for line in f if line.strip()]
     except FileNotFoundError:
         return []
 
@@ -211,6 +212,7 @@ class GameState:
                     self.racha += 1
                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     print(f"\n✅ ¡Felicidades! Tablero completo y correcto. ({current_time})")
+                    print(f"🕒 Hora de finalización: {current_time}")
                     print(f"Sumaste {puntos_a_sumar} puntos. Puntaje total: {self.puntaje}")
                     input("\nPresiona Enter para continuar...")
                     self.board, self.solution = self.build_board()
