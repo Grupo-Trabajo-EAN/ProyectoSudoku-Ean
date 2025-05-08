@@ -204,8 +204,6 @@ class GameState:
         elif self.flow_state == GameFlow.GAME:
             if self.user_input == "1":
                 self.board, self.solution = self.build_board()
-                self.puntaje = 0
-                self.racha = 0
                 self.draw()
                 return
             elif self.user_input == "2":
