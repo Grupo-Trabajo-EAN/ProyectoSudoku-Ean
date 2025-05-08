@@ -48,68 +48,6 @@ def load_best_scores():
     except FileNotFoundError:
         return []
 
-def save_score(player_name, score, record_type="final"):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Guardar en scores.txt (historial completo por jugador)
-    scores_path = "scores.txt"
-    entry = f"{now} - Puntaje: {score}"
-    found = False
-    lines = []
-    if os.path.exists(scores_path):
-        with open(scores_path, "r") as f:
-            current = None
-            for line in f:
-                line_clean = line.strip()
-                if line_clean.startswith("==="):
-                    current = line_clean.strip("=").strip()
-                    lines.append(line)
-                elif current == player_name:
-                    lines.append(f"{line_clean}\n")
-                    found = True
-                else:
-                    lines.append(f"{line}")
-    if not found:
-        lines.append(f"=== {player_name} ===\n")
-    lines.append(f"{entry}\n")
-
-    with open(scores_path, "w") as f:
-        f.writelines(lines)
-
-    # Guardar en highscores.txt (top 5)
-    highscores_path = "highscores.txt"
-    scores = []
-    if os.path.exists(highscores_path):
-        with open(highscores_path, "r") as f:
-            for line in f:
-                parts = line.strip().split("|")
-                if len(parts) == 3:
-                    name = parts[0].strip()
-                    date = parts[1].strip()
-                    try:
-                        pts = int(parts[2].replace("Puntaje:", "").strip())
-                        scores.append((name, date, pts))
-                    except ValueError:
-                        continue
-    if record_type == "final":  # Solo registrar en highscores si es un cierre de sesión
-        scores.append((player_name, now, score))
-        scores.sort(key=lambda x: x[2], reverse=True)
-        with open(highscores_path, "w") as f:
-            for i, (name, date, pts) in enumerate(scores[:5], 1):
-                f.write(f"{i}. {name} | {date} | Puntaje: {pts}\n")
-
-
-def show_scores():
-    path = os.path.join("scores", "scores.txt")
-    if not os.path.exists(path):
-        print("Aún no hay puntajes registrados.")
-        return
-    print("\n📊 HISTORIAL DE PUNTAJES\n")
-    with open(path, "r") as f:
-        print(f.read())
-    input("Presiona Enter para continuar...")
-
-
 class GameState:
     def __init__(self, rows, cols, flow_state=GameFlow.MAIN_MENU):
         self.rows = rows
@@ -122,9 +60,8 @@ class GameState:
         self.solution = []
         self.visualization = "numbers"
         self.puntaje = 0
-        self.max_puntaje = 0
         self.racha = 0
-        self.intentos_restantes = 5
+        self.intentos_restantes = 3
 
     def build_board(self):
         solution = random.choice(SUDOKU_SOLUTIONS)
@@ -136,7 +73,7 @@ class GameState:
             if board[row][col] != 0:
                 board[row][col] = 0
                 empty_cells -= 1
-        self.intentos_restantes = 5 if self.difficulty == "easy" else 3
+        self.intentos_restantes = 3 if self.difficulty == "easy" else 5
         return board, solution
 
     def print_board(self):
@@ -169,15 +106,11 @@ class GameState:
             print(f"Jugador: {self.player_name} | Dificultad: {self.difficulty}")
             self.print_board()
             print(f"\nPuntaje actual: {self.puntaje} | Racha actual: {self.racha} | Intentos restantes: {self.intentos_restantes}")
-            print(f"Máximo puntaje alcanzado: {self.max_puntaje}")
             print("Ingresa: fila columna valor (ej: 1 2 A)")
             print("Escribe 1 para reiniciar, 2 para salir.")
         elif self.flow_state == GameFlow.RETRY_OR_EXIT:
             print("\nHas perdido la racha.")
-            print("1. Probar otro tablero con el mismo jugador")
-            print("2. Cambiar de jugador")
-            print("3. Mostrar puntajes")
-            print("4. Salir")
+            print("1. Intentar otro tablero\n2. Salir")
 
     def update(self, user_input=""):
         self.user_input = user_input.strip()
@@ -188,8 +121,6 @@ class GameState:
             if self.user_input == "1":
                 self.flow_state = GameFlow.PLAYER_NAME
             elif self.user_input == "2":
-                if self.player_name:
-                    save_score(self.player_name, self.max_puntaje)
                 self.game_loop = False
         elif self.flow_state == GameFlow.PLAYER_NAME:
             if not self.user_input:
@@ -279,8 +210,6 @@ class GameState:
                     puntos_a_sumar = 10 + (bono if self.racha > 0 else 0)
                     self.puntaje += puntos_a_sumar
                     self.racha += 1
-                    self.max_puntaje = max(self.max_puntaje, self.puntaje)
-                    save_score(self.player_name, self.puntaje, record_type="partial")
                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     print(f"\n✅ ¡Felicidades! Tablero completo y correcto. ({current_time})")
                     print(f"🕒 Hora de finalización: {current_time}")
@@ -292,20 +221,9 @@ class GameState:
                 print("Entrada inválida. Asegúrate de usar formato correcto.")
         elif self.flow_state == GameFlow.RETRY_OR_EXIT:
             if self.user_input == "1":
-                self.racha = 0
-                self.flow_state = GameFlow.VISUALIZATION
+                self.flow_state = GameFlow.VISUALIZATION  
             elif self.user_input == "2":
-                save_score(self.player_name, self.max_puntaje)
-                self.__init__(self.rows, self.cols)
-                self.flow_state = GameFlow.PLAYER_NAME
-            elif self.user_input == "3":
-                show_scores()
-                self.draw()
-            elif self.user_input == "4":
-                save_score(self.player_name, self.max_puntaje)
                 self.game_loop = False
-            else:
-                print("Opción inválida. Elige 1, 2, 3 o 4.")
 
 def go():
     game_state = GameState(4, 4)
